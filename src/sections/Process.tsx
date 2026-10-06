@@ -92,7 +92,7 @@ export const Process = () => {
               
               {/* Text Side */}
               <div className="process-text flex-1 flex flex-col">
-                <span className="text-[15vw] leading-[0.8] font-display text-cream/5 opacity-50 block -mb-8 pointer-events-none">
+                <span className="text-[15vw] leading-[0.8] font-display text-cream/15 block -mb-8 pointer-events-none">
                   {panel.numeral}
                 </span>
                 <h2 className="text-6xl md:text-8xl font-display uppercase tracking-tight relative z-10">

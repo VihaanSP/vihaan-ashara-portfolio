@@ -1,13 +1,13 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { RoundedBox } from '@react-three/drei';
+import { RoundedBox, useVideoTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { gsap, ScrollTrigger } from '../../lib/gsap';
 
 const SPACING = 1.1;
 
 // Define a single cell in the lattice
-const Cell = ({ position, index }: { position: [number, number, number], index: number }) => {
+const Cell = ({ position, index, texture }: { position: [number, number, number], index: number, texture: THREE.VideoTexture }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   return (
@@ -21,8 +21,12 @@ const Cell = ({ position, index }: { position: [number, number, number], index: 
     >
       <meshStandardMaterial
         color="#FFFFFF"
-        roughness={0.45}
-        metalness={0.15}
+        map={texture}
+        emissiveMap={texture}
+        emissive="#FFFFFF"
+        emissiveIntensity={0.5}
+        roughness={0.2}
+        metalness={0.8}
       />
       {/* Thin ink seams are achieved via the gaps (SPACING) and ambient occlusion/shadows */}
     </RoundedBox>
@@ -44,6 +48,14 @@ const Lattice = () => {
     }
     return pos;
   }, []);
+
+  // Load a single local video texture to guarantee CORS bypass and smooth playback
+  const texture = useVideoTexture('/nature.mp4', {
+    crossOrigin: 'Anonymous',
+    loop: true,
+    muted: true,
+    start: true
+  });
 
   useFrame(() => {
     // We could add damped rotation here or let GSAP handle it all.
@@ -81,33 +93,12 @@ const Lattice = () => {
       if (introKilled) return;
       introKilled = true;
       introTweens.forEach((t) => t.kill());
-      cells.forEach((cell) => {
-        const p = cell.userData.originalPosition;
-        cell.position.set(p[0], p[1], p[2]);
-        cell.scale.set(1, 1, 1);
-        cell.quaternion.set(0, 0, 0, 1);
-      });
+      // We don't reset to original positions here because the scrollTrigger will scrub the timeline
+      // to whatever progress the scroll is at.
     };
 
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        id: 'hero-pin',
-        trigger: '#hero-section',
-        start: 'top top',
-        end: '+=200%',
-        scrub: 1,
-        pin: true,
-        refreshPriority: 1,
-        onUpdate: (self) => {
-          if (self.progress > 0) killIntro();
-        },
-      }
-    });
-
-    // Refresh ScrollTrigger to update downstream elements like Process
-    setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 50);
+    // We build the timeline normally (assembled -> scrambled) but we will scrub it BACKWARDS.
+    const tl = gsap.timeline({ paused: true });
 
     const applyTurn = (filterFn: (d: THREE.Object3D) => boolean, axis: 'x'|'y'|'z', angle: number, startTime: number, duration: number) => {
       const targetDummies = dummies.filter(d => filterFn(d.dummy));
@@ -178,31 +169,79 @@ const Lattice = () => {
     dummies.forEach(d => groupRef.current!.remove(d.dummy));
     groupRef.current.remove(pivot);
 
-    // 3. Now that timeline is built, set cells to randomized starting state for Intro
+    // Immediately jump to the end of the timeline (fully scrambled)
+    tl.progress(1);
+
+
+    const scrambledCells = cells.map(cell => ({
+      position: cell.position.clone(),
+      quaternion: cell.quaternion.clone()
+    }));
+
+    // Now set up the ScrollTrigger to scrub the timeline BACKWARDS (from 1 to 0)
+    // This makes it start scrambled and form into the perfect cube as you scroll down.
+    gsap.fromTo(tl,
+      { progress: 1 },
+      {
+        progress: 0,
+        ease: 'none',
+        scrollTrigger: {
+          id: 'hero-pin',
+          trigger: '#hero-section',
+          start: 'top top',
+          end: '+=200%',
+          scrub: 1,
+          pin: true,
+          refreshPriority: 1,
+          onUpdate: (self) => {
+            if (self.progress > 0) killIntro();
+          },
+        }
+      }
+    );
+
+    setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 50);
+
+    // 3. Intro Animation: set cells to random space, animate to SCRAMBLED state
     const introTweens: gsap.core.Tween[] = [];
-    cells.forEach((cell) => {
+    cells.forEach((cell, i) => {
       const startX = (Math.random() - 0.5) * 20;
       const startY = (Math.random() - 0.5) * 20 + 10;
       const startZ = (Math.random() - 0.5) * 20;
 
-      const origPos = cell.userData.originalPosition;
       cell.position.set(startX, startY, startZ);
       cell.scale.set(0, 0, 0);
+      
+      // Randomize initial rotation for cooler flying effect
+      cell.quaternion.random();
+
+      const target = scrambledCells[i];
 
       introTweens.push(
         gsap.to(cell.position, {
-          x: origPos[0],
-          y: origPos[1],
-          z: origPos[2],
-          duration: 2,
+          x: target.position.x,
+          y: target.position.y,
+          z: target.position.z,
+          duration: 2.5,
           ease: 'expo.out',
-          delay: Math.random() * 0.5 + 1.5
+          delay: Math.random() * 0.5 + 0.5
+        }),
+        gsap.to(cell.quaternion, {
+          x: target.quaternion.x,
+          y: target.quaternion.y,
+          z: target.quaternion.z,
+          w: target.quaternion.w,
+          duration: 2.5,
+          ease: 'expo.out',
+          delay: Math.random() * 0.5 + 0.5
         }),
         gsap.to(cell.scale, {
           x: 1, y: 1, z: 1,
-          duration: 1.5,
+          duration: 2,
           ease: 'elastic.out(1, 0.5)',
-          delay: Math.random() * 0.5 + 1.5
+          delay: Math.random() * 0.5 + 0.5
         })
       );
     });
@@ -211,7 +250,7 @@ const Lattice = () => {
   return (
     <group ref={groupRef} position={[3, 0, 0]} rotation={[Math.PI / 8, Math.PI / 4, 0]}>
       {positions.map((pos, i) => (
-        <Cell key={i} index={i} position={pos} />
+        <Cell key={i} index={i} position={pos} texture={texture} />
       ))}
     </group>
   );
