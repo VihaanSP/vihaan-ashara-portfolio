@@ -118,11 +118,11 @@ export const Preloader = () => {
           </div>
 
           <div className="w-full h-4 border-2 border-white rounded-full p-[2px]">
-            <div ref={progressFillRef} className="h-full bg-[#00ff41] rounded-full w-0" />
+            <div ref={progressFillRef} className="h-full bg-[#66FCF1] rounded-full w-0" />
           </div>
         </div>
 
-        <div className="absolute top-8 right-12 font-mono text-xs text-[#00ff41]/70">
+        <div className="absolute top-8 right-12 font-mono text-xs text-[#66FCF1]/70">
           PRESS R TO RE-RENDER
         </div>
       </div>

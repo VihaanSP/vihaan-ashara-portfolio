@@ -17,16 +17,12 @@ const Cell = ({ position, index }: { position: [number, number, number], index: 
       radius={0.05} // Radius of the rounded corners
       smoothness={4} // Number of curve segments
       position={position}
-      castShadow
-      receiveShadow
       userData={{ index, originalPosition: position }}
     >
-      <meshPhysicalMaterial
-        color="#F2EDE0" // Warm cream
-        roughness={0.5}
-        metalness={0.1}
-        clearcoat={0.1}
-        // TODO: Swap these materials with reel stills, service glyphs, and brand marks
+      <meshStandardMaterial
+        color="#FFFFFF"
+        roughness={0.45}
+        metalness={0.15}
       />
       {/* Thin ink seams are achieved via the gaps (SPACING) and ambient occlusion/shadows */}
     </RoundedBox>
@@ -56,10 +52,194 @@ const Lattice = () => {
 
   useEffect(() => {
     if (!groupRef.current) return;
-    
-    const cells = groupRef.current.children;
-    
-    // (a) ASSEMBLY: Fly in from random positions (timer-driven intro)
+    const cells = groupRef.current.children as THREE.Mesh[];
+
+    // 1. Temporarily assemble cells to their final solved state
+    // so that GSAP records these as the start values for the scroll timeline.
+    cells.forEach((cell) => {
+      const p = cell.userData.originalPosition;
+      cell.position.set(p[0], p[1], p[2]);
+      cell.quaternion.set(0, 0, 0, 1);
+      cell.scale.set(1, 1, 1);
+    });
+
+    // 2. Setup Dummies and Pivot for calculating Rubik's Cube turns
+    const pivot = new THREE.Group();
+    groupRef.current.add(pivot);
+
+    const dummies = cells.map(cell => {
+      const dummy = new THREE.Object3D();
+      dummy.position.copy(cell.position);
+      dummy.quaternion.copy(cell.quaternion);
+      groupRef.current!.add(dummy);
+      return { cell, dummy, lastQ: new THREE.Quaternion() };
+    });
+    groupRef.current.updateMatrixWorld(true);
+
+    let introKilled = false;
+    const killIntro = () => {
+      if (introKilled) return;
+      introKilled = true;
+      introTweens.forEach((t) => t.kill());
+      cells.forEach((cell) => {
+        const p = cell.userData.originalPosition;
+        cell.position.set(p[0], p[1], p[2]);
+        cell.scale.set(1, 1, 1);
+        cell.quaternion.set(0, 0, 0, 1);
+      });
+    };
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        id: 'hero-pin',
+        trigger: '#hero-section',
+        start: 'top top',
+        end: '+=200%',
+        scrub: 1,
+        pin: true,
+        refreshPriority: 1,
+        onUpdate: (self) => {
+          if (self.progress > 0) killIntro();
+        },
+      }
+    });
+
+    // Refresh ScrollTrigger to update downstream elements like Process
+    setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 50);
+
+    const applyTurn = (filterFn: (d: THREE.Object3D) => boolean, axis: 'x'|'y'|'z', angle: number, startTime: number, duration: number) => {
+      const targetDummies = dummies.filter(d => filterFn(d.dummy));
+      
+      pivot.position.set(0,0,0);
+      pivot.rotation.set(0,0,0);
+      pivot.updateMatrixWorld();
+      
+      targetDummies.forEach(d => pivot.attach(d.dummy));
+      pivot.rotation[axis] = angle;
+      pivot.updateMatrixWorld(true);
+      targetDummies.forEach(d => groupRef.current!.attach(d.dummy));
+
+      targetDummies.forEach(d => {
+        tl.to(d.cell.position, {
+          x: d.dummy.position.x,
+          y: d.dummy.position.y,
+          z: d.dummy.position.z,
+          duration,
+          ease: 'power2.inOut'
+        }, startTime);
+        
+        let targetQ = d.dummy.quaternion.clone();
+        if (d.lastQ.dot(targetQ) < 0) {
+          targetQ.set(-targetQ.x, -targetQ.y, -targetQ.z, -targetQ.w);
+        }
+        tl.to(d.cell.quaternion, {
+          x: targetQ.x,
+          y: targetQ.y,
+          z: targetQ.z,
+          w: targetQ.w,
+          duration,
+          ease: 'power2.inOut',
+          onUpdate: function() {
+            d.cell.quaternion.normalize();
+          }
+        }, startTime);
+        d.lastQ.copy(targetQ);
+      });
+    };
+
+    // SHOWCASE (0 -> 30% mapped to 0 -> 3s)
+    tl.to(groupRef.current.rotation, {
+      y: Math.PI * 2,
+      x: Math.PI * 0.5,
+      ease: 'power2.inOut',
+      duration: 3
+    }, 0);
+    tl.to(groupRef.current.position, {
+      x: 3.6,
+      y: 0.6,
+      ease: 'power2.inOut',
+      duration: 3
+    }, 0);
+
+    // THE PLAY (30% -> 55% mapped to 3s -> 5.5s)
+    applyTurn(d => d.position.x > 0.5, 'x', Math.PI / 2, 3.0, 0.5);
+    applyTurn(d => d.position.y > 0.5, 'y', Math.PI / 2, 3.6, 0.5);
+    applyTurn(d => Math.abs(d.position.z) < 0.5, 'z', -Math.PI / 2, 4.2, 0.5);
+    applyTurn(d => d.position.x < -0.5, 'x', -Math.PI / 2, 4.8, 0.5);
+
+    // THE SCRAMBLE (55% -> 75% mapped to 5.5s -> 7.5s)
+    applyTurn(d => d.position.y < -0.5, 'y', Math.PI, 5.5, 0.6);
+    applyTurn(d => d.position.z > 0.5, 'z', -Math.PI / 2, 6.2, 0.6);
+    applyTurn(d => Math.abs(d.position.x) < 0.5, 'x', Math.PI, 6.9, 0.6);
+
+    // THE DISMANTLE (75% -> 100% mapped to 7.5s -> 10s)
+    tl.to(groupRef.current.position, {
+      x: 0, y: 0, z: 0,
+      ease: 'power3.inOut',
+      duration: 2.5
+    }, 7.5);
+    tl.to(groupRef.current.rotation, {
+      x: 0, y: 0, z: 0,
+      ease: 'power3.inOut',
+      duration: 2.5
+    }, 7.5);
+
+    dummies.forEach((d, i) => {
+      tl.to(d.cell.position, {
+        x: (i - 13) * 0.36,
+        y: -3.6,
+        z: 0,
+        duration: 2.5,
+        ease: 'power3.inOut'
+      }, 7.5);
+      
+      let targetQ = new THREE.Quaternion(); // 0,0,0,1
+      if (d.lastQ.dot(targetQ) < 0) {
+        targetQ.set(-targetQ.x, -targetQ.y, -targetQ.z, -targetQ.w);
+      }
+      tl.to(d.cell.quaternion, {
+        x: targetQ.x, y: targetQ.y, z: targetQ.z, w: targetQ.w,
+        duration: 2.5,
+        ease: 'power3.inOut',
+        onUpdate: function() { d.cell.quaternion.normalize(); }
+      }, 7.5);
+    });
+
+    // FOLLOW: the dismantled pieces stay with the scroll as a fixed 3D layer.
+    // Gentle rise + slow turn while travelling the page, then shrink away
+    // before the footer so the CTA stays clean. Starts exactly where the hero
+    // pin ends, so the two timelines never fight over the group transform.
+    const followTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: document.body,
+        start: () => ScrollTrigger.getById('hero-pin')?.end ?? 0,
+        end: 'max',
+        scrub: 1,
+      }
+    });
+    followTl.to(groupRef.current.position, {
+      y: -1.2,
+      ease: 'none',
+      duration: 1
+    }, 0);
+    followTl.to(groupRef.current.rotation, {
+      y: Math.PI * 0.75,
+      ease: 'none',
+      duration: 1
+    }, 0);
+    followTl.to(groupRef.current.scale, {
+      x: 0.001, y: 0.001, z: 0.001,
+      ease: 'power2.in',
+      duration: 0.15
+    }, 0.85);
+
+    // Clean up dummies
+    dummies.forEach(d => groupRef.current!.remove(d.dummy));
+    groupRef.current.remove(pivot);
+
+    // 3. Now that timeline is built, set cells to randomized starting state for Intro
     const introTweens: gsap.core.Tween[] = [];
     cells.forEach((cell) => {
       const startX = (Math.random() - 0.5) * 20;
@@ -77,7 +257,7 @@ const Lattice = () => {
           z: origPos[2],
           duration: 2,
           ease: 'expo.out',
-          delay: Math.random() * 0.5 + 1.5 // Wait for preloader wipe
+          delay: Math.random() * 0.5 + 1.5
         }),
         gsap.to(cell.scale, {
           x: 1, y: 1, z: 1,
@@ -87,88 +267,10 @@ const Lattice = () => {
         })
       );
     });
-
-    // The moment scroll takes over, kill the intro tweens and snap cells to
-    // their assembled state. Otherwise the timer-driven intro and the scrubbed
-    // timeline fight over the same properties and the motion glitches.
-    let introKilled = false;
-    const killIntro = () => {
-      if (introKilled) return;
-      introKilled = true;
-      introTweens.forEach((t) => t.kill());
-      cells.forEach((cell) => {
-        const p = cell.userData.originalPosition;
-        cell.position.set(p[0], p[1], p[2]);
-        cell.scale.set(1, 1, 1);
-      });
-    };
-
-    // (b) SHOWCASE & (c) THE CUT (ScrollTrigger)
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: '#hero-section',
-        start: 'top top',
-        end: '+=200%', // 2 viewport heights of scrolling
-        scrub: 1, // damped scrub
-        pin: true,
-        refreshPriority: 1, // Ensure this pin is calculated before downstream pins
-        onUpdate: (self) => {
-          if (self.progress > 0) killIntro();
-        },
-      }
-    });
-    
-    // Refresh ScrollTrigger to update downstream elements like Process
-    setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 50);
-
-    // Rotate the entire lattice
-    tl.to(groupRef.current.rotation, {
-      y: Math.PI * 2,
-      x: Math.PI * 0.5,
-      ease: 'none',
-      duration: 1
-    }, 0);
-    
-    // Move lattice to right side
-    tl.to(groupRef.current.position, {
-      x: 3,
-      ease: 'power2.inOut',
-      duration: 0.5
-    }, 0);
-
-    // Disperse into a bounded drifting cloud. Targets are deterministic
-    // pseudo-random per cell and stay inside the camera frame (the old
-    // targets flew to x=±16, far outside the ±5 viewport, which read as
-    // a glitch instead of a choreographed explosion).
-    const fract = (x: number) => x - Math.floor(x);
-    const cloudPos = (i: number): [number, number, number] => {
-      const f1 = fract(Math.sin(i * 12.9898) * 43758.5453);
-      const f2 = fract(Math.sin(i * 78.233) * 12543.123);
-      return [(f1 - 0.5) * 10, (f2 - 0.5) * 6, (f1 * f2 - 0.25) * 4];
-    };
-    cells.forEach((cell, i) => {
-      const [cx, cy, cz] = cloudPos(i);
-      tl.to(cell.position, {
-        x: cx, // Drift apart into a cloud
-        y: cy,
-        z: cz,
-        ease: 'power3.inOut',
-        duration: 0.5
-      }, 0.5); // Starts halfway through the scroll
-      
-      tl.to(cell.rotation, {
-        x: 0, y: 0, z: 0,
-        ease: 'power2.inOut',
-        duration: 0.5
-      }, 0.5);
-    });
-
   }, []);
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]} rotation={[Math.PI / 8, Math.PI / 4, 0]}>
+    <group ref={groupRef} position={[3, 0, 0]} rotation={[Math.PI / 8, Math.PI / 4, 0]}>
       {positions.map((pos, i) => (
         <Cell key={i} index={i} position={pos} />
       ))}
@@ -178,15 +280,15 @@ const Lattice = () => {
 
 export default function HeroCanvas() {
   return (
-    <div className="absolute inset-0 z-0 pointer-events-none">
+    <div className="fixed inset-0 z-[15] pointer-events-none">
       <Canvas
         camera={{ position: [0, 0, 12], fov: 45 }}
         dpr={[1, 1.5]}
         gl={{ antialias: false, powerPreference: 'high-performance' }}
       >
         <ambientLight intensity={1.5} />
-        <directionalLight position={[10, 10, 5]} intensity={2} color="#F2EDE0" />
-        <directionalLight position={[-10, -10, -5]} intensity={1} color="#00E5FF" />
+        <directionalLight position={[10, 10, 5]} intensity={2} color="#FFFFFF" />
+        <directionalLight position={[-10, -10, -5]} intensity={1.2} color="#66FCF1" />
         <Lattice />
       </Canvas>
     </div>

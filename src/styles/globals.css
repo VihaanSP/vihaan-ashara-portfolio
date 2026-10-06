@@ -6,10 +6,10 @@
 @import "@fontsource/jetbrains-mono";
 
 @theme {
-  --color-cream: #F2EDE0;
-  --color-ink: #12150D;
-  --color-olive: #2A3020;
-  --color-accent: #00E5FF;
+  --color-cream: #FFFFFF;
+  --color-ink: #0B0C10;
+  --color-slate: #1F2833;
+  --color-accent: #66FCF1;
   
   --font-sans: "Inter Variable", sans-serif;
   --font-serif: "Instrument Serif", serif;

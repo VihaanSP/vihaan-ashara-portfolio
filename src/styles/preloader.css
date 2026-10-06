@@ -1,6 +1,6 @@
 .preloader-crt {
   overflow: hidden;
-  background-color: #050a15; /* deep blue-black */
+  background-color: #0B0C10; /* deep ink black — matches site bg */
   color: #a8b0c3;
   font-family: var(--font-mono);
 }
