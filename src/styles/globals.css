@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@import "@fontsource/anton";
+@import "@fontsource/instrument-serif";
+@import "@fontsource-variable/inter";
+@import "@fontsource/jetbrains-mono";
+
+@theme {
+  --color-cream: #F2EDE0;
+  --color-ink: #12150D;
+  --color-olive: #2A3020;
+  --color-accent: #00E5FF;
+  
+  --font-sans: "Inter Variable", sans-serif;
+  --font-serif: "Instrument Serif", serif;
+  --font-display: "Anton", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+  background-color: var(--color-ink);
+  color: var(--color-cream);
+  font-family: var(--font-sans);
+}
