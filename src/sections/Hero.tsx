@@ -35,7 +35,10 @@ export const Hero = () => {
 
         <div className="relative z-10 flex-1 flex flex-col justify-center items-start pt-20 pointer-events-none">
           <h1 className="text-6xl sm:text-[10vw] leading-[0.85] font-display uppercase overflow-hidden">
-            <div className="overflow-hidden flex flex-wrap items-baseline gap-[2vw]">
+            <div className="overflow-hidden">
+              <span className="hero-word translate-y-0 block">EIGENCUTS</span>
+            </div>
+            <div className="overflow-hidden flex flex-wrap items-baseline gap-[2vw] mt-4">
               <span className="hero-word translate-y-0 block">VISUAL</span>
               <span className="hero-serif font-serif italic font-normal text-[1.1em] lowercase translate-x-0 opacity-100">alchemy</span>
             </div>
@@ -50,7 +53,7 @@ export const Hero = () => {
         </div>
 
         <div className="relative z-10 flex justify-between items-end font-mono text-xs uppercase tracking-widest border-t border-ink/10 pt-6">
-          <div>Vihaan Ashara &copy; 2026</div>
+          <div>EIGENCUTS &copy; 2026 — Vihaan Ashara</div>
           <div className="text-accent">Available for work</div>
         </div>
       </section>

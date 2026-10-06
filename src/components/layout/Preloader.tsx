@@ -19,6 +19,7 @@ export const Preloader = () => {
     'Memory Test: 16384K OK',
     'Detecting primary master... 3D Assets',
     'Detecting primary slave... Textures',
+    'EIGENCUTS_OS v2.6 — initializing render engine',
     'Booting system...',
   ];
 
