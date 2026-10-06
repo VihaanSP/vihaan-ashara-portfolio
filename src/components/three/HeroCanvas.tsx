@@ -149,91 +149,30 @@ const Lattice = () => {
       });
     };
 
-    // SHOWCASE (0 -> 30% mapped to 0 -> 3s)
+    // SHOWCASE (0 -> 2.5s)
     tl.to(groupRef.current.rotation, {
       y: Math.PI * 2,
       x: Math.PI * 0.5,
       ease: 'power2.inOut',
-      duration: 3
+      duration: 2.5
     }, 0);
     tl.to(groupRef.current.position, {
       x: 3.6,
       y: 0.6,
       ease: 'power2.inOut',
-      duration: 3
-    }, 0);
-
-    // THE PLAY (30% -> 55% mapped to 3s -> 5.5s)
-    applyTurn(d => d.position.x > 0.5, 'x', Math.PI / 2, 3.0, 0.5);
-    applyTurn(d => d.position.y > 0.5, 'y', Math.PI / 2, 3.6, 0.5);
-    applyTurn(d => Math.abs(d.position.z) < 0.5, 'z', -Math.PI / 2, 4.2, 0.5);
-    applyTurn(d => d.position.x < -0.5, 'x', -Math.PI / 2, 4.8, 0.5);
-
-    // THE SCRAMBLE (55% -> 75% mapped to 5.5s -> 7.5s)
-    applyTurn(d => d.position.y < -0.5, 'y', Math.PI, 5.5, 0.6);
-    applyTurn(d => d.position.z > 0.5, 'z', -Math.PI / 2, 6.2, 0.6);
-    applyTurn(d => Math.abs(d.position.x) < 0.5, 'x', Math.PI, 6.9, 0.6);
-
-    // THE DISMANTLE (75% -> 100% mapped to 7.5s -> 10s)
-    tl.to(groupRef.current.position, {
-      x: 0, y: 0, z: 0,
-      ease: 'power3.inOut',
       duration: 2.5
-    }, 7.5);
-    tl.to(groupRef.current.rotation, {
-      x: 0, y: 0, z: 0,
-      ease: 'power3.inOut',
-      duration: 2.5
-    }, 7.5);
-
-    dummies.forEach((d, i) => {
-      tl.to(d.cell.position, {
-        x: (i - 13) * 0.36,
-        y: -3.6,
-        z: 0,
-        duration: 2.5,
-        ease: 'power3.inOut'
-      }, 7.5);
-      
-      let targetQ = new THREE.Quaternion(); // 0,0,0,1
-      if (d.lastQ.dot(targetQ) < 0) {
-        targetQ.set(-targetQ.x, -targetQ.y, -targetQ.z, -targetQ.w);
-      }
-      tl.to(d.cell.quaternion, {
-        x: targetQ.x, y: targetQ.y, z: targetQ.z, w: targetQ.w,
-        duration: 2.5,
-        ease: 'power3.inOut',
-        onUpdate: function() { d.cell.quaternion.normalize(); }
-      }, 7.5);
-    });
-
-    // FOLLOW: the dismantled pieces stay with the scroll as a fixed 3D layer.
-    // Gentle rise + slow turn while travelling the page, then shrink away
-    // before the footer so the CTA stays clean. Starts exactly where the hero
-    // pin ends, so the two timelines never fight over the group transform.
-    const followTl = gsap.timeline({
-      scrollTrigger: {
-        trigger: document.body,
-        start: () => ScrollTrigger.getById('hero-pin')?.end ?? 0,
-        end: 'max',
-        scrub: 1,
-      }
-    });
-    followTl.to(groupRef.current.position, {
-      y: -1.2,
-      ease: 'none',
-      duration: 1
     }, 0);
-    followTl.to(groupRef.current.rotation, {
-      y: Math.PI * 0.75,
-      ease: 'none',
-      duration: 1
-    }, 0);
-    followTl.to(groupRef.current.scale, {
-      x: 0.001, y: 0.001, z: 0.001,
-      ease: 'power2.in',
-      duration: 0.15
-    }, 0.85);
+
+    // THE PLAY
+    applyTurn(d => d.position.x > 0.5, 'x', Math.PI / 2, 2.5, 1.2);
+    applyTurn(d => d.position.y > 0.5, 'y', Math.PI / 2, 4.0, 1.2);
+    applyTurn(d => Math.abs(d.position.z) < 0.5, 'z', -Math.PI / 2, 5.5, 1.2);
+    applyTurn(d => d.position.x < -0.5, 'x', -Math.PI / 2, 7.0, 1.2);
+
+    // THE SCRAMBLE
+    applyTurn(d => d.position.y < -0.5, 'y', Math.PI, 8.2, 0.8);
+    applyTurn(d => d.position.z > 0.5, 'z', -Math.PI / 2, 9.0, 0.8);
+    applyTurn(d => Math.abs(d.position.x) < 0.5, 'x', Math.PI, 9.8, 0.8);
 
     // Clean up dummies
     dummies.forEach(d => groupRef.current!.remove(d.dummy));
@@ -280,7 +219,7 @@ const Lattice = () => {
 
 export default function HeroCanvas() {
   return (
-    <div className="fixed inset-0 z-[15] pointer-events-none">
+    <div className="absolute inset-0 z-0 pointer-events-none">
       <Canvas
         camera={{ position: [0, 0, 12], fov: 45 }}
         dpr={[1, 1.5]}

@@ -2,10 +2,14 @@ import { useRef } from 'react';
 import { useGSAP, gsap } from '../lib/gsap';
 import { useStore } from '../lib/store';
 import { MagneticButton } from '../components/ui/MagneticButton';
+import { lazy, Suspense } from 'react';
+
+const HeroCanvas = lazy(() => import('../components/three/HeroCanvas'));
 
 export const Hero = () => {
   const heroRef = useRef<HTMLElement>(null);
   const ready = useStore((s) => s.ready);
+  const tier = useStore((s) => s.tier);
 
   useGSAP(() => {
     if (!ready) return;
@@ -24,6 +28,11 @@ export const Hero = () => {
         ref={heroRef} 
         className="relative w-full h-screen bg-ink text-cream flex flex-col justify-between p-8 sm:p-12 overflow-hidden"
       >
+        {tier === 'full' && (
+          <Suspense fallback={null}>
+            <HeroCanvas />
+          </Suspense>
+        )}
         <div className="relative z-10 flex-1 flex flex-col justify-center items-start pt-20 pointer-events-none">
           <h1 className="text-6xl sm:text-[12vw] leading-[0.85] font-display uppercase overflow-hidden">
             <div className="overflow-hidden">

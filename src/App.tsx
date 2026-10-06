@@ -1,5 +1,4 @@
-import { lazy, Suspense } from 'react';
-import { useStore } from './lib/store';
+
 import { Preloader } from './components/layout/Preloader';
 import { Nav } from './components/layout/Nav';
 import { SmoothScroll } from './components/layout/SmoothScroll';
@@ -13,18 +12,11 @@ import { Pricing } from './sections/Pricing';
 import { Testimonials } from './sections/Testimonials';
 import { Footer } from './sections/Footer';
 
-const HeroCanvas = lazy(() => import('./components/three/HeroCanvas'));
 
 function App() {
-  const tier = useStore((s) => s.tier);
   return (
     <SmoothScroll>
       <Preloader />
-      {tier === 'full' && (
-        <Suspense fallback={null}>
-          <HeroCanvas />
-        </Suspense>
-      )}
       <Nav />
       <main>
         <Hero />
