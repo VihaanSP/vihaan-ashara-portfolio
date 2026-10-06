@@ -93,12 +93,33 @@ const Lattice = () => {
       if (introKilled) return;
       introKilled = true;
       introTweens.forEach((t) => t.kill());
-      // We don't reset to original positions here because the scrollTrigger will scrub the timeline
-      // to whatever progress the scroll is at.
+      cells.forEach((cell) => {
+        const p = cell.userData.originalPosition;
+        cell.position.set(p[0], p[1], p[2]);
+        cell.scale.set(1, 1, 1);
+        cell.quaternion.set(0, 0, 0, 1);
+      });
     };
 
-    // We build the timeline normally (assembled -> scrambled) but we will scrub it BACKWARDS.
-    const tl = gsap.timeline({ paused: true });
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        id: 'hero-pin',
+        trigger: '#hero-section',
+        start: 'top top',
+        end: '+=200%',
+        scrub: 1,
+        pin: true,
+        refreshPriority: 1,
+        onUpdate: (self) => {
+          if (self.progress > 0) killIntro();
+        },
+      }
+    });
+
+    // Refresh ScrollTrigger to update downstream elements like Process
+    setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 50);
 
     const applyTurn = (filterFn: (d: THREE.Object3D) => boolean, axis: 'x'|'y'|'z', angle: number, startTime: number, duration: number) => {
       const targetDummies = dummies.filter(d => filterFn(d.dummy));
@@ -169,79 +190,31 @@ const Lattice = () => {
     dummies.forEach(d => groupRef.current!.remove(d.dummy));
     groupRef.current.remove(pivot);
 
-    // Immediately jump to the end of the timeline (fully scrambled)
-    tl.progress(1);
-
-
-    const scrambledCells = cells.map(cell => ({
-      position: cell.position.clone(),
-      quaternion: cell.quaternion.clone()
-    }));
-
-    // Now set up the ScrollTrigger to scrub the timeline BACKWARDS (from 1 to 0)
-    // This makes it start scrambled and form into the perfect cube as you scroll down.
-    gsap.fromTo(tl,
-      { progress: 1 },
-      {
-        progress: 0,
-        ease: 'none',
-        scrollTrigger: {
-          id: 'hero-pin',
-          trigger: '#hero-section',
-          start: 'top top',
-          end: '+=200%',
-          scrub: 1,
-          pin: true,
-          refreshPriority: 1,
-          onUpdate: (self) => {
-            if (self.progress > 0) killIntro();
-          },
-        }
-      }
-    );
-
-    setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 50);
-
-    // 3. Intro Animation: set cells to random space, animate to SCRAMBLED state
+    // 3. Now that timeline is built, set cells to randomized starting state for Intro
     const introTweens: gsap.core.Tween[] = [];
-    cells.forEach((cell, i) => {
+    cells.forEach((cell) => {
       const startX = (Math.random() - 0.5) * 20;
       const startY = (Math.random() - 0.5) * 20 + 10;
       const startZ = (Math.random() - 0.5) * 20;
 
+      const origPos = cell.userData.originalPosition;
       cell.position.set(startX, startY, startZ);
       cell.scale.set(0, 0, 0);
-      
-      // Randomize initial rotation for cooler flying effect
-      cell.quaternion.random();
-
-      const target = scrambledCells[i];
 
       introTweens.push(
         gsap.to(cell.position, {
-          x: target.position.x,
-          y: target.position.y,
-          z: target.position.z,
-          duration: 2.5,
+          x: origPos[0],
+          y: origPos[1],
+          z: origPos[2],
+          duration: 2,
           ease: 'expo.out',
-          delay: Math.random() * 0.5 + 0.5
-        }),
-        gsap.to(cell.quaternion, {
-          x: target.quaternion.x,
-          y: target.quaternion.y,
-          z: target.quaternion.z,
-          w: target.quaternion.w,
-          duration: 2.5,
-          ease: 'expo.out',
-          delay: Math.random() * 0.5 + 0.5
+          delay: Math.random() * 0.5 + 1.5
         }),
         gsap.to(cell.scale, {
           x: 1, y: 1, z: 1,
-          duration: 2,
+          duration: 1.5,
           ease: 'elastic.out(1, 0.5)',
-          delay: Math.random() * 0.5 + 0.5
+          delay: Math.random() * 0.5 + 1.5
         })
       );
     });

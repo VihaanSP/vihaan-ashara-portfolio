@@ -1,4 +1,4 @@
-
+import { useStore } from './lib/store';
 import { Preloader } from './components/layout/Preloader';
 import { Nav } from './components/layout/Nav';
 import { SmoothScroll } from './components/layout/SmoothScroll';
@@ -11,12 +11,23 @@ import { SelectedWork } from './sections/SelectedWork';
 import { Pricing } from './sections/Pricing';
 import { Testimonials } from './sections/Testimonials';
 import { Footer } from './sections/Footer';
+import { lazy, Suspense } from 'react';
+
+const DNACanvas = lazy(() => import('./components/three/DNACanvas'));
 
 
 function App() {
+  const tier = useStore((s) => s.tier);
   return (
     <SmoothScroll>
       <Preloader />
+      {tier === 'full' && (
+        <Suspense fallback={null}>
+          <div className="fixed inset-y-0 right-0 w-1/4 pointer-events-none z-0 opacity-10 md:opacity-40">
+            <DNACanvas />
+          </div>
+        </Suspense>
+      )}
       <Nav />
       <main>
         <Hero />
