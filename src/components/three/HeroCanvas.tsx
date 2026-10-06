@@ -59,32 +59,49 @@ const Lattice = () => {
     
     const cells = groupRef.current.children;
     
-    // (a) ASSEMBLY: Fly in from random positions
+    // (a) ASSEMBLY: Fly in from random positions (timer-driven intro)
+    const introTweens: gsap.core.Tween[] = [];
     cells.forEach((cell) => {
       const startX = (Math.random() - 0.5) * 20;
       const startY = (Math.random() - 0.5) * 20 + 10;
       const startZ = (Math.random() - 0.5) * 20;
-      
+
       const origPos = cell.userData.originalPosition;
       cell.position.set(startX, startY, startZ);
       cell.scale.set(0, 0, 0);
-      
-      gsap.to(cell.position, {
-        x: origPos[0],
-        y: origPos[1],
-        z: origPos[2],
-        duration: 2,
-        ease: 'expo.out',
-        delay: Math.random() * 0.5 + 1.5 // Wait for preloader wipe
-      });
-      
-      gsap.to(cell.scale, {
-        x: 1, y: 1, z: 1,
-        duration: 1.5,
-        ease: 'elastic.out(1, 0.5)',
-        delay: Math.random() * 0.5 + 1.5
-      });
+
+      introTweens.push(
+        gsap.to(cell.position, {
+          x: origPos[0],
+          y: origPos[1],
+          z: origPos[2],
+          duration: 2,
+          ease: 'expo.out',
+          delay: Math.random() * 0.5 + 1.5 // Wait for preloader wipe
+        }),
+        gsap.to(cell.scale, {
+          x: 1, y: 1, z: 1,
+          duration: 1.5,
+          ease: 'elastic.out(1, 0.5)',
+          delay: Math.random() * 0.5 + 1.5
+        })
+      );
     });
+
+    // The moment scroll takes over, kill the intro tweens and snap cells to
+    // their assembled state. Otherwise the timer-driven intro and the scrubbed
+    // timeline fight over the same properties and the motion glitches.
+    let introKilled = false;
+    const killIntro = () => {
+      if (introKilled) return;
+      introKilled = true;
+      introTweens.forEach((t) => t.kill());
+      cells.forEach((cell) => {
+        const p = cell.userData.originalPosition;
+        cell.position.set(p[0], p[1], p[2]);
+        cell.scale.set(1, 1, 1);
+      });
+    };
 
     // (b) SHOWCASE & (c) THE CUT (ScrollTrigger)
     const tl = gsap.timeline({
@@ -94,7 +111,10 @@ const Lattice = () => {
         end: '+=200%', // 2 viewport heights of scrolling
         scrub: 1, // damped scrub
         pin: true,
-        refreshPriority: 1 // Ensure this pin is calculated before downstream pins
+        refreshPriority: 1, // Ensure this pin is calculated before downstream pins
+        onUpdate: (self) => {
+          if (self.progress > 0) killIntro();
+        },
       }
     });
     
@@ -118,12 +138,22 @@ const Lattice = () => {
       duration: 0.5
     }, 0);
 
-    // Disperse into horizontal timeline
+    // Disperse into a bounded drifting cloud. Targets are deterministic
+    // pseudo-random per cell and stay inside the camera frame (the old
+    // targets flew to x=±16, far outside the ±5 viewport, which read as
+    // a glitch instead of a choreographed explosion).
+    const fract = (x: number) => x - Math.floor(x);
+    const cloudPos = (i: number): [number, number, number] => {
+      const f1 = fract(Math.sin(i * 12.9898) * 43758.5453);
+      const f2 = fract(Math.sin(i * 78.233) * 12543.123);
+      return [(f1 - 0.5) * 10, (f2 - 0.5) * 6, (f1 * f2 - 0.25) * 4];
+    };
     cells.forEach((cell, i) => {
+      const [cx, cy, cz] = cloudPos(i);
       tl.to(cell.position, {
-        x: (i - 13) * 1.2, // Spread out horizontally
-        y: -4, // Bottom edge
-        z: 0,
+        x: cx, // Drift apart into a cloud
+        y: cy,
+        z: cz,
         ease: 'power3.inOut',
         duration: 0.5
       }, 0.5); // Starts halfway through the scroll
