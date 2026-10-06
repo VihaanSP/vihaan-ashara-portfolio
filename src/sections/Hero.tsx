@@ -35,7 +35,7 @@ export const Hero = () => {
           </p>
           
           <div className="mt-12 overflow-hidden hero-cta pointer-events-auto">
-            <MagneticButton>Book a project</MagneticButton>
+            <MagneticButton className="bg-accent text-ink">Book a project</MagneticButton>
           </div>
         </div>
 

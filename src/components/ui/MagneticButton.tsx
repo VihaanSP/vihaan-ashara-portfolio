@@ -38,7 +38,7 @@ export const MagneticButton = ({ children, className = '', ...props }: { childre
   return (
     <button
       ref={buttonRef}
-      className={`relative rounded-full px-8 py-4 font-mono text-sm uppercase tracking-widest bg-accent text-ink overflow-hidden group ${className}`}
+      className={`relative rounded-full px-8 py-4 font-mono text-sm uppercase tracking-widest overflow-hidden group ${className}`}
       {...props}
     >
       <span className="relative z-10">{children}</span>
